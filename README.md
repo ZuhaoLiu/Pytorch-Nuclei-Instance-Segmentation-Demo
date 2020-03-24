@@ -20,3 +20,12 @@ The validation dataset is [TNBC](https://zenodo.org/record/1175282#.Xnk84G5uKhd)
 - opencv 4.2.0
 - SimpleITK
 - skimage 0.16.2
+
+# Quick start
+
+1. Download the preprocessed data from [link](https://drive.google.com/file/d/16ajg19swFmvFqkH5sxsdoI3GX4aqjRB6/view?usp=sharing)
+2. Train the model
+```
+python train.py
+```
+
