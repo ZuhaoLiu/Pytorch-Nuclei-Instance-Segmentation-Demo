@@ -9,7 +9,7 @@ The validation dataset is [TNBC](https://zenodo.org/record/1175282#.Xnk84G5uKhd)
 
 # visualization
 original image
-![image](https://github.com/flyingdingding/Pytorch-Nuclei-Instance-Segmentation-with-Watershed/blob/master/demo_images/8.png)
+![image](https://github.com/flyingdingding/Pytorch-Nuclei-Instance-Segmentation-Demo/blob/master/demo_images/visual.png)
 
 segmentation results
 
