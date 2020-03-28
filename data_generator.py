@@ -11,11 +11,17 @@ import random
 import string
 import cv2
 def standard(x, meanval):
+	"""standardize images
+	Args:
+	meanval: mean values of each channel
+	"""
 	x = x.astype(np.float32)
 	x = x / 255. - meanval
 	return x
 
 class train_dataset():
+	""" training data generator
+	"""
 	def __init__(self, batch_size, image_number = 717):
 		self.batch_size = batch_size
 		self.image_number = image_number
@@ -27,12 +33,19 @@ class train_dataset():
 		base_path = 'dataset/train_dataset/'
 		for i in range(self.image_number):
 			self.im[i] = standard(np.array(Image.open(base_path+'images/'+str(i)+'.png'))[:,:,0:3], self.meanval)
+			#original images
 			self.fg[i] = np.array(Image.open(base_path+'label/'+str(i)+'.png')).astype(np.float32)/255
+			#label foreground
 			self.fw[i] = np.load(base_path+'fw/'+str(i)+'.npy')
+			#weights for label foreground
 			self.iv[i] = np.array(Image.open(base_path+'interval/'+str(i)+'.png')).astype(np.float32)
+			#label interval
 			self.iw[i] = loadmat(base_path+'iw/'+str(i)+'.mat')['Interval_weight']
+			#weights for label interval
 			self.mk[i] = np.array(Image.open(base_path+'marker/'+str(i)+'.png')).astype(np.float32)
+			#label marker
 			self.mw[i] = loadmat(base_path+'mw/'+str(i)+'.mat')['Masker_weight']
+			#weights for label marker
 		self.im = np.transpose(self.im, (0, 3, 1, 2))
 		self.fg = np.transpose(self._make_one_hot(self.fg),(0,3,1,2))
 		self.iv = np.transpose(self._make_one_hot(self.iv),(0,3,1,2))
@@ -42,7 +55,7 @@ class train_dataset():
 		self.iw = self.iw[:,np.newaxis,:,:]
 		self.mw = self.mw[:,np.newaxis,:,:]
 
-	def __iter__(self):
+	def __iter__(self): #creat a generator
 		batch_number = math.ceil(self.image_number/self.batch_size)
 		for batch in range(batch_number):
 			batch_im = torch.from_numpy(self.im[batch*self.batch_size: (batch+1)*self.batch_size]).cuda()
@@ -53,13 +66,17 @@ class train_dataset():
 			batch_mk = torch.from_numpy(self.mk[batch*self.batch_size: (batch+1)*self.batch_size]).cuda()
 			batch_mw = torch.from_numpy(self.mw[batch*self.batch_size: (batch+1)*self.batch_size]).cuda()
 			yield [batch_im, batch_fg, batch_fw, batch_iv, batch_iw, batch_mk, batch_mw]
-		return
+		return # automatic stop to yield after yielding all data
 	def _make_one_hot(self, data):
 		return np.eye(2)[data.astype(np.int32)].astype(np.float32)
 		
 
 
 class evaluate_data():
+	"""generate evaluation data and evaluate segmentation results
+	Arg:
+	data_type: if valid, yield validation dataset, if test, yield testing dataset
+	"""
 	def __init__(self, batch_size, image_number = 10, data_type = 'valid'):
 		self.data_type = data_type
 		self.batch_size = batch_size
@@ -69,18 +86,19 @@ class evaluate_data():
 		self.label = np.zeros([image_number, 512, 512]).astype(np.float32)
 		self.interval = np.zeros([image_number, 512, 512]).astype(np.float32)
 		self.marker = np.zeros([image_number, 512, 512]).astype(np.float32)
-		self.highest_dice = 0
 		base_path = 'dataset/'+self.data_type+'_dataset/'
 		self.crop_index = [0]
 		for i in range(self.image_number):
 			if i == 0:
 				self.image = crop_image(standard(np.array(Image.open(base_path+'images/'+str(i)+'.png'))[:,:,0:3],
 							self.meanval), 256, 256, 4)
+				#crop original image to smaller images to match the network input shape
 			else:
 				self.image = np.vstack((self.image,
 						crop_image(standard(np.array(Image.open(base_path+'images/'+str(i)+'.png'))[:,:,0:3],
 						self.meanval), 256, 256, 4)))
 			self.crop_index.append(self.image.shape[0])
+			#record the position of each image for recovering after forward propagation
 			self.label[i] = np.array(Image.open(base_path+'label/'+str(i)+'.png')).astype(np.float32)/255
 			self.interval[i] = np.array(Image.open(base_path+'interval/'+str(i)+'.png')).astype(np.float32)
 			self.marker[i] = np.array(Image.open(base_path+'marker/'+str(i)+'.png')).astype(np.float32)
@@ -94,18 +112,28 @@ class evaluate_data():
 			yield torch.from_numpy(self.image[batch*self.batch_size:(batch+1)*self.batch_size]).cuda()
 		return
 	def evaluate(self, pre_foreground, pre_interval, pre_marker, write = False, write_file = 'Results.txt'):
+		"""evaluate segmentation results
+		Args:
+		pre_foreground: foreground semantic segmentation prediction
+		pre_interval: interval semantic segmentation prediction
+		pre_marker: marker semantic segmentation prediction
+		write: judge whether save results in txt file
+		write_file: name of txt file
+		"""
 		self.write = write
-		self.write_file = write_file
+		self.write_file = write_file 
 	
 		assert pre_foreground.shape[0]==pre_interval.shape[0]==pre_marker.shape[0]==self.image.shape[0],\
 			'Need to support enough predictions'
 		re_foreground, re_interval, re_marker = self._recover(pre_foreground, pre_interval, pre_marker)
 		seg_results = self._watershed(re_foreground, re_interval, re_marker)
 		self._semantic_evaluate(re_foreground, re_interval, re_marker)
-		if_save = self._instance_evaluate(seg_results)
+		if_save = self._instance_evaluate(seg_results)#judge whether save the model according to instance dice
 		return if_save
 
 	def _semantic_evaluate(self, foreground, interval, marker):
+		"""evaluate semantic segmentation effect
+		"""
 		all_dice = list()
 		print_name = ['foreground', 'interval', 'marker']
 		all_dice.append(self._calculate_binary_dice(foreground, self.label))
@@ -122,6 +150,10 @@ class evaluate_data():
 			f.close()
 
 	def _instance_evaluate(self, seg_results):
+		"""evaluate semantic segmentation effect
+		Arg:
+		seg_results: instance segmentation prediction
+		"""
 		results = np.zeros([self.image_number, 5]).astype(np.float32)# First col: F1 score. 
 							#Second col: precision. Third col: recall.
 							#Forth col: object level dice. Fifth col: object level Hausdorff.
@@ -140,6 +172,7 @@ class evaluate_data():
 				results[i,3] = result
 				Dice_number += 1
 			#results[i, 4] = instance_metric.ObjectHausdorff(seg_results[i], self.instance_label[i])
+			# The calculation of Hausdorff distance is time-consuming
 			Haus_number += 1
 
 		results = np.sum(results, axis = 0)
@@ -164,6 +197,8 @@ class evaluate_data():
 		return if_save
 			
 	def _make_instance_label(self):
+		"""intance evaluation labels
+		"""
 		instance_label = np.zeros(self.label.shape).astype(np.int32)
 		for i in range(self.image_number):
 			instance_label[i], _ = watershed.Watershed_Proposed(self.label[i].astype(np.uint8), 
@@ -171,6 +206,10 @@ class evaluate_data():
 		return instance_label
 		
 	def _watershed(self, foreground, interval, marker):
+		"""Marker-controlled watershed method to generate instance predication from semantic prediction
+		Arg:
+		foreground, interval, maeker: semantic segmentation results
+		"""
 		foreground = (foreground - interval).astype(np.uint8)
 		marker = marker.astype(np.uint8)
 		seg_results = np.zeros(foreground.shape).astype(np.int32)
@@ -179,6 +218,8 @@ class evaluate_data():
 		return seg_results		
 
 	def _recover(self, foreground, interval, marker):
+		"""recover segmentaiton prediction to original size
+		"""
 		re_foreground = np.zeros(self.label.shape).astype(self.label.dtype)
 		re_interval = np.zeros(self.interval.shape).astype(self.interval.dtype)
 		re_marker = np.zeros(self.marker.shape).astype(self.marker.dtype)
@@ -200,15 +241,19 @@ class evaluate_data():
 		return np.mean(dice)
 
 	def color_visual(self, mask):
+		"""save the instance segmentation results
+		Arg:
+		mask: instance segmentation prediction
+		"""
 		output = np.zeros([mask.shape[0], mask.shape[1], 3]).astype(np.uint8)
 		unique_mask = np.unique(mask)
 		number = unique_mask.shape[0]
-		colors = np.random.randint(0,255,[number-1,3])
+		colors = np.random.randint(0,255,[number-1,3]) # random generate color for each nuclei
 		for i in range(number - 1):
 			output[mask == i+1] = colors[i]
 		if not os.path.exists('color_visual'):
-			os.mkdir('color_visual')
-		name = [random.choice(string.digits + string.ascii_letters) for i in range(16)]
+			os.mkdir('color_visual') # creat save image folder
+		name = [random.choice(string.digits + string.ascii_letters) for i in range(16)] # random generate image name
 		name = 'color_visual/' + ''.join(name) + '.png'
 		cv2.imwrite(name,output)
 		

@@ -10,6 +10,17 @@ class cross_loss(nn.Module):
 		super(cross_loss, self).__init__()
 		self.weights = [1,1,1]
 	def forward(self, pf, pi, pm, fg, fw, iv, iw, mk, mw):
+		"""
+		Args:
+		pf: prediction foreground
+		pi: prediction interval
+		pm: prediction marker
+		fg: label foreground
+		fw: foreground weight
+		iv: label interval
+		iw: interval weight
+		mk: label marker
+		mw: marker interval"""
 		cost_pf = -torch.mean(torch.mul(torch.sum(fg*torch.log(pf+1e-8),dim = 1),fw))*self.weights[0]
 		cost_pi = -torch.mean(torch.mul(torch.sum(iv*torch.log(pi+1e-8),dim = 1),iw))*self.weights[1]
 		cost_pm = -torch.mean(torch.mul(torch.sum(mk*torch.log(pm+1e-8),dim = 1),mw))*self.weights[2]
@@ -17,6 +28,15 @@ class cross_loss(nn.Module):
 
 
 def valid_test(net, dataset, write = False, pth_name = 'CP_highest.pth', fun_type = 'valid', load_name = 'CP_highest.pth'):
+	"""
+	evaluate results
+	Args:
+	dataset: test dataset or valid dataset
+	write: whether write results in txt file
+	pth_name: file name of saved best model
+	fun_type: function type, 'valid' or 'test'
+	load_name: loaded model name in test stage
+	"""
 	if fun_type == 'test':
 		net.load_state_dict(torch.load('CP_highest.pth'))
 	net.eval()

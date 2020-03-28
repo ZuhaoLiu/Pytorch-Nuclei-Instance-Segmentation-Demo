@@ -4,6 +4,11 @@ import torch.nn.functional as F
 
 class DownBlock(nn.Module):
 	def __init__(self, conv_number, channel_list):
+		"""
+		down sampling block
+		process: conv_number x (Conv + ReLU) + BatchNorm + MaxPool
+		Args:
+		conv_number: convolution number of each down sampling block"""
 		super(DownBlock, self).__init__()
 		assert conv_number == len(channel_list) - 1, 'Channel list does not have correct length'
 		self.block = nn.ModuleList()
@@ -20,11 +25,15 @@ class DownBlock(nn.Module):
 		
 
 class MakeDownLayers(nn.Module):
+	"""
+	pile multiple down blocks to down sampling layers"""
 	def __init__(self):
 		super(MakeDownLayers, self).__init__()
 		self.blocks = nn.ModuleList()
 		conv_number = [2,2,3,3,3]
 		channel_list = [[3,64,64],[64,128,128],[128,256,256,256],[256,512,512,512],[512,512,512,512]]
+		#convolution channel number for each down sampling block
+
 		for i in range(5):
 			self.blocks.append(DownBlock(conv_number[i], channel_list[i]))
 	def forward(self, x):
@@ -37,6 +46,8 @@ class MakeDownLayers(nn.Module):
 
 
 class MakeUpLayers(nn.Module):
+	"""
+	Up sampling layers"""
 	def __init__(self):
 		super(MakeUpLayers, self).__init__()
 		self.conv = nn.ModuleList()
@@ -64,6 +75,11 @@ class MakeUpLayers(nn.Module):
 			in_x = self.conv[i+1](x_list[3-i])
 			x = torch.cat([in_x, x], dim = 1)
 			x = self.upsample[i+1](x)
+			"""
+			output marker prediction in 3th upsampling layer
+			output interval prediction in 4th upsampling layer
+			output foreground prediction in 5th upsampling layer
+			"""
 			if i == 1:
 				marker = F.softmax(self.MA_classifier(x), dim = -1)
 			elif i == 2:

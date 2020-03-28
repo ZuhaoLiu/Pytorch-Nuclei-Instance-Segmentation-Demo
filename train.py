@@ -41,11 +41,11 @@ if __name__ == '__main__':
 			lr=args.lr,
 			gpu=args.gpu
 			)
-		test_dataset = evaluate_data(args.batchsize, image_number = 10, data_type = 'test')
+		test_dataset = evaluate_data(args.batchsize, image_number = 10, data_type = 'test')#creat test dataset
 		valid_test(net, 
 			test_dataset,
 			write = True,
-			fun_type = 'test')
+			fun_type = 'test')#evaluate results in test dataset
 			
 	except KeyboardInterrupt:
 		torch.save(net.state_dict(), 'INTERRUPTED.pth')

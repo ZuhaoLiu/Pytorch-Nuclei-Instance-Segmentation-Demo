@@ -2,6 +2,10 @@ import numpy as np
 import SimpleITK as sitk
 
 def F1score(S, G):
+	"""calculate instance F1 score
+	S: instance prediction
+	G: label
+	"""
 	S = S.astype(np.float32)
 	G = G.astype(np.float32)
 	
@@ -51,6 +55,10 @@ def F1score(S, G):
 	return [score, precision, recall]
 
 def ObjectDice(S, G):
+	"""calculate instance dice
+	S: instance prediction
+	G: label
+	"""
 	def Dice(A, B):
 		inter = float(np.sum(np.logical_and(A, B)))
 		union = float(np.sum(A)) + float(np.sum(B))
@@ -110,7 +118,10 @@ def ObjectDice(S, G):
 
 
 def ObjectHausdorff(S, G):
-
+	"""calculate instance Hausdorff distance
+	S: instance prediction
+	G: label
+	"""
 	def Hausdorff(A, B):
 		A = A.astype(np.int32)
 		B = B.astype(np.int32)

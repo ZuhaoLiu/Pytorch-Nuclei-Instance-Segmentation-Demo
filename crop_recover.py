@@ -2,6 +2,12 @@ import numpy as np
 from PIL import Image
 import math
 def calculate_crop_number(image, crop_height, crop_width, oc):
+	""" calculate how many images can be cropped from original images
+	Args:
+	crop_height: height of cropped images
+	crop_width: width of cropped images
+	oc: overlap rate
+	"""
 	height = image.shape[0]
 	width = image.shape[1]
 	height_number = math.ceil(height / crop_height)
@@ -13,6 +19,10 @@ def calculate_crop_number(image, crop_height, crop_width, oc):
 
 
 def test_and_complement(image, crop_height, crop_width):
+	"""complement images whose height and width are smaller than cropped size
+	
+	"""
+	
 	if image.shape[0] != crop_height or image.shape[1] != crop_width:
 		if len(image.shape) == 2:
 			complement = np.zeros([crop_height, crop_width]).astype(image.dtype)
@@ -24,6 +34,8 @@ def test_and_complement(image, crop_height, crop_width):
 		return image
 
 def crop_image(image, crop_height, crop_width, oc):
+	"""crop original image to smaller images
+	"""
 	total_output_number, height_number, width_number = calculate_crop_number(image, crop_height, crop_width, oc)
 	if len(image.shape) == 2:
 		output = np.zeros([total_output_number, crop_height, crop_width]).astype(image.dtype)
@@ -44,6 +56,11 @@ def crop_image(image, crop_height, crop_width, oc):
 
 
 def recover_image(cropped_image, height, width, crop_height, crop_width, oc):
+	"""recover cropped images to original size
+	Args:
+	height: height of original image
+	width: width of original image
+	"""
 	
 	in_height_number = math.ceil(height / crop_height)
 	height_number = oc * (in_height_number - 1) + 1
